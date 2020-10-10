@@ -1,4 +1,6 @@
 /* eslint-disable no-use-before-define */
+/* eslint-disable react-hooks/rules-of-hooks */
+
 // `render` will initiate first task
 let nextUnitOfWork = null;
 let wipRoot = null;
@@ -94,9 +96,9 @@ function commitWork(fiber) {
   }
   const domParent = domParentFiber.dom;
 
-  if (fiber.effectTag === "PLACEMENT" && fiber.dom != null) {
+  if (fiber.effectTag === "PLACEMENT" && !!fiber.dom) {
     domParent.appendChild(fiber.dom);
-  } else if (fiber.effectTag === "UPDATE" && fiber.dom != null) {
+  } else if (fiber.effectTag === "UPDATE" && !!fiber.dom) {
     updateDom(fiber.dom, fiber.base.props, fiber.props);
   } else if (fiber.effectTag === "DELETION") {
     commitDeletion(fiber, domParent);
@@ -269,8 +271,25 @@ function useState(init) {
   };
 
   wipFiber.hooks.push(hook);
-  hookIndex++;
+  hookIndex += 1;
   return [hook.state, setState];
 }
 
-export default { createElement, render, useState };
+class Component {
+  constructor(props) {
+    this.props = props;
+  }
+}
+
+function useComponent(Component) {
+  return function (props) {
+    const component = new Component(props);
+    const [state, setState] = useState(component.state);
+    component.props = props;
+    component.state = state;
+    component.setState = setState;
+    return component.render();
+  };
+}
+
+export default { createElement, render, useState, Component, useComponent };
