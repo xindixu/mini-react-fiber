@@ -21,13 +21,33 @@ function createElement(type, props, ...children) {
   };
 }
 
+function commitRoot() {
+  commitWorker(wipRoot.child);
+  wipRoot = null;
+}
+
+function commitWorker(fiber) {
+  if (!fiber) {
+    return;
+  }
+  const domParent = fiber.parent.dom;
+  domParent.appendChild(fiber.dom);
+  commitWorker(fiber.child);
+  commitWorker(fiber.sibling);
+}
+
 // `render` will initiate first task
 let nextUnitOfWork = null;
+let wipRoot = null;
+
 // manger `diff` tasks
 function workLoop(deadline) {
   // current tick hasn't ended
   while (nextUnitOfWork && deadline.timeRemaining() > 1) {
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+  }
+  if (!nextUnitOfWork && wipRoot) {
+    commitRoot();
   }
   window.requestIdleCallback(workLoop);
 }
@@ -116,12 +136,13 @@ function render(vdom, container) {
   //   render(child, dom);
   // });
 
-  nextUnitOfWork = {
+  wipRoot = {
     dom: container,
     props: {
       children: [vdom],
     },
   };
+  nextUnitOfWork = wipRoot;
   // container.appendChild(dom);
 }
 
