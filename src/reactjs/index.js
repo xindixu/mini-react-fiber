@@ -7,6 +7,7 @@ function createTextElement(text) {
     },
   };
 }
+
 function createElement(type, props, ...children) {
   delete props.__source;
   return {
@@ -21,8 +22,6 @@ function createElement(type, props, ...children) {
 }
 
 function render(vdom, container) {
-  // container.innerHTML = `<pre>${JSON.stringify(vdom, null, 2)}</pre>`;
-
   const dom =
     vdom.type === "text"
       ? document.createTextNode(vdom.nodeValue)
@@ -35,11 +34,31 @@ function render(vdom, container) {
       dom[name] = vdom.props[name];
     });
 
+  // When num of children gets big, this will cause issue since we cannot pause this loop.
   vdom.props.children.forEach((child) => {
     render(child, dom);
   });
 
   container.appendChild(dom);
 }
+
+// `render` will initiate first task
+let nextUnitOfWork = null;
+// manger `diff` tasks
+function workLoop(deadline) {
+  // current tick hasn't ended
+  while (nextUnitOfWork && deadline.timeRemaining() > 1) {
+    nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+  }
+  requestIdleCallback(workLoop);
+}
+
+function performUnitOfWork(fiber) {
+  // get next task
+}
+
+// ref: https://developer.mozilla.org/en-US/docs/Web/API/Window/requestIdleCallback
+// Process tasks when the event loop is idle
+requestIdleCallback(workLoop);
 
 export default { createElement, render };
