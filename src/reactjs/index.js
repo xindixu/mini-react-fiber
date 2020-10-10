@@ -107,15 +107,31 @@ function commitRoot() {
   wipRoot = null;
 }
 
+function commitDeletion(fiber, domParent) {
+  if (fiber.dom) {
+    domParent.removeChild(fiber.dom);
+  } else {
+    commitDeletion(fiber.child, domParent);
+  }
+}
+
 function commitWorker(fiber) {
   if (!fiber) {
     return;
   }
-  const domParent = fiber.parent.dom;
+
+  // function component doesn't have dom
+  // look for dom up in the tree recursively
+  let domParentFiber = fiber.parent;
+  while (!domParentFiber.dom) {
+    domParentFiber = domParentFiber.parent;
+  }
+  const domParent = domParentFiber.dom;
+
   if (fiber.effectTag === "REPLACE" && fiber.dom !== null) {
     domParent.appendChild(fiber.dom);
   } else if (fiber.effectTag === "DELETE") {
-    domParent.removeChild(fiber.dom);
+    commitDeletion(fiber, domParent);
   } else if (fiber.effectTag === "UPDATE" && fiber.dom !== null) {
     updateDom(fiber.dom, fiber.base.props, fiber.props);
   }
@@ -124,7 +140,7 @@ function commitWorker(fiber) {
   commitWorker(fiber.sibling);
 }
 
-// manger `diff` tasks
+// manage `diff` tasks
 function workLoop(deadline) {
   // current tick hasn't ended
   while (nextUnitOfWork && deadline.timeRemaining() > 1) {
@@ -136,15 +152,12 @@ function workLoop(deadline) {
   window.requestIdleCallback(workLoop);
 }
 
-/*
- * fiber:
- * Parent -> First child
- * Any child -> Parent
- * First child -> second child -> third child
- */
-function performUnitOfWork(fiber) {
-  // get next task
+function updateFunctionComponent(fiber) {
+  const children = [fiber.type(fiber.props)];
+  reconcileChildren(fiber, children);
+}
 
+function updateHostComponent(fiber) {
   if (!fiber.dom) {
     fiber.dom = creatDom(fiber);
   }
@@ -155,6 +168,21 @@ function performUnitOfWork(fiber) {
   const elements = fiber.props.children;
 
   reconcileChildren(fiber, elements);
+}
+/*
+ * fiber:
+ * Parent -> First child
+ * Any child -> Parent
+ * First child -> second child -> third child
+ */
+function performUnitOfWork(fiber) {
+  const isFunctionComponent = fiber.type instanceof Function;
+  if (isFunctionComponent) {
+    updateFunctionComponent(fiber);
+  } else {
+    updateHostComponent(fiber);
+  }
+  // get next task
 
   // find next unit of work
   // 1. child
