@@ -4,13 +4,13 @@ let nextUnitOfWork = null;
 let wipRoot = null;
 // current root that got interrupted
 let currentRoot = null;
-let deletions = [];
-let hookIndex = null;
+let deletions = null;
 let wipFiber = null;
+let hookIndex = null;
 
 function createTextElement(text) {
   return {
-    type: "text",
+    type: "TEXT",
     props: {
       nodeValue: text,
       children: [],
@@ -33,8 +33,8 @@ function createElement(type, props, ...children) {
 
 function createDom(vdom) {
   const dom =
-    vdom.type === "text"
-      ? document.createTextNode(vdom.nodeValue)
+    vdom.type === "TEXT"
+      ? document.createTextNode("")
       : document.createElement(vdom.type);
   updateDom(dom, {}, vdom.props);
   return dom;
@@ -94,11 +94,11 @@ function commitWork(fiber) {
   }
   const domParent = domParentFiber.dom;
 
-  if (fiber.effectTag === "REPLACE" && fiber.dom !== null) {
+  if (fiber.effectTag === "PLACEMENT" && fiber.dom != null) {
     domParent.appendChild(fiber.dom);
-  } else if (fiber.effectTag === "UPDATE" && fiber.dom !== null) {
+  } else if (fiber.effectTag === "UPDATE" && fiber.dom != null) {
     updateDom(fiber.dom, fiber.base.props, fiber.props);
-  } else if (fiber.effectTag === "DELETE") {
+  } else if (fiber.effectTag === "DELETION") {
     commitDeletion(fiber, domParent);
   }
 
@@ -120,7 +120,7 @@ function render(vdom, container) {
     props: {
       children: [vdom],
     },
-    base: currentRoot, // previous root
+    base: currentRoot,
   };
   deletions = [];
   nextUnitOfWork = wipRoot;
@@ -129,7 +129,7 @@ function render(vdom, container) {
 // manage `diff` tasks
 function workLoop(deadline) {
   // current tick hasn't ended
-
+  // didn't consider deadline.didTimeout
   while (nextUnitOfWork && deadline.timeRemaining() > 1) {
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
   }
@@ -191,20 +191,11 @@ function performUnitOfWork(fiber) {
 function reconcileChildren(fiber, elements) {
   // construct fiber from vdom
 
-  /*
-   * fiber = {
-   *  dom,
-   *  parent,
-   *  child,
-   *  siblings
-   * }
-   */
-
   let index = 0;
-  let prevSibling = null;
   let oldFiber = fiber.base && fiber.base.child;
+  let prevSibling = null;
 
-  while (index < elements.length || oldFiber !== null) {
+  while (index < elements.length || oldFiber != null) {
     const element = elements[index];
     let newFiber = null;
 
@@ -229,12 +220,12 @@ function reconcileChildren(fiber, elements) {
         dom: null,
         parent: fiber,
         base: null,
-        effectTag: "REPLACE",
+        effectTag: "PLACEMENT",
       };
     }
     if (!sameType && oldFiber) {
       // delete old node
-      oldFiber.effectTag = "DELETE";
+      oldFiber.effectTag = "DELETION";
       deletions.push(oldFiber);
     }
 
@@ -278,7 +269,7 @@ function useState(init) {
   };
 
   wipFiber.hooks.push(hook);
-  hookIndex += 1;
+  hookIndex++;
   return [hook.state, setState];
 }
 

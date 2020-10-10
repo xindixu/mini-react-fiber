@@ -1,5 +1,5 @@
-// import React from "./reactjs/index";
-import React from "./reactjs/copy";
+import React from "./reactjs";
+// import React from "./reactjs/copy";
 
 const ReactDOM = React;
 
