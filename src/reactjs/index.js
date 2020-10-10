@@ -1,4 +1,12 @@
 /* eslint-disable no-use-before-define */
+// `render` will initiate first task
+let nextUnitOfWork = null;
+let wipRoot = null;
+const currentRoot = null;
+let deletions = [];
+let hookIndex = null;
+let wipFiber = null;
+
 function createTextElement(text) {
   return {
     type: "text",
@@ -51,6 +59,37 @@ function render(vdom, container) {
   // container.appendChild(dom);
 }
 
+function useState(init) {
+  const oldHook =
+    wipFiber.base && wipFiber.base.hooks && wipFiber.base.hooks[hookIndex];
+  const hook = {
+    state: oldHook ? oldHook.state : init,
+    queue: [],
+  };
+
+  const actions = oldHook ? oldHook.queue : [];
+
+  actions.forEach((action) => {
+    hook.state = action;
+  });
+
+  const setState = (action) => {
+    hook.queue.push(action);
+    wipRoot = {
+      dom: currentRoot.dom,
+      props: currentRoot.props,
+      base: currentRoot,
+    };
+
+    nextUnitOfWork = wipRoot;
+    deletions = [];
+  };
+
+  wipFiber.hooks.push(hook);
+  hookIndex += 1;
+  return [hook.state, setState];
+}
+
 function creatDom(vdom) {
   const dom =
     vdom.type === "text"
@@ -65,6 +104,7 @@ function updateDom(dom, prevProps, nextProps) {
   // if old exists, cancel
   // if new, update
 
+  // remove attributes
   Object.keys(prevProps)
     .filter((name) => name !== "children")
     .filter((name) => !(name in nextProps))
@@ -80,6 +120,7 @@ function updateDom(dom, prevProps, nextProps) {
       }
     });
 
+  // add attributes
   Object.keys(nextProps)
     .filter((name) => name !== "children")
     .forEach((name) => {
@@ -90,20 +131,15 @@ function updateDom(dom, prevProps, nextProps) {
           false
         );
       } else {
-        dom[name] = "";
+        dom[name] = nextProps[name];
       }
     });
 }
-// `render` will initiate first task
-let nextUnitOfWork = null;
-let wipRoot = null;
-let currentRoot = null;
-const deletions = [];
 
 function commitRoot() {
-  deletions.forEach(commitWorker);
-  commitWorker(wipRoot.child);
-  currentRoot = wipRoot;
+  // deletions.forEach(commitWork);
+  commitWork(wipRoot.child);
+  // currentRoot = wipRoot;
   wipRoot = null;
 }
 
@@ -115,7 +151,7 @@ function commitDeletion(fiber, domParent) {
   }
 }
 
-function commitWorker(fiber) {
+function commitWork(fiber) {
   if (!fiber) {
     return;
   }
@@ -135,9 +171,10 @@ function commitWorker(fiber) {
   } else if (fiber.effectTag === "UPDATE" && fiber.dom !== null) {
     updateDom(fiber.dom, fiber.base.props, fiber.props);
   }
+
   // domParent.appendChild(fiber.dom);
-  commitWorker(fiber.child);
-  commitWorker(fiber.sibling);
+  commitWork(fiber.child);
+  commitWork(fiber.sibling);
 }
 
 // manage `diff` tasks
@@ -146,6 +183,7 @@ function workLoop(deadline) {
   while (nextUnitOfWork && deadline.timeRemaining() > 1) {
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
   }
+
   if (!nextUnitOfWork && wipRoot) {
     commitRoot();
   }
@@ -153,6 +191,9 @@ function workLoop(deadline) {
 }
 
 function updateFunctionComponent(fiber) {
+  wipFiber = fiber;
+  hookIndex = 0;
+  wipFiber.hooks = [];
   const children = [fiber.type(fiber.props)];
   reconcileChildren(fiber, children);
 }
@@ -165,9 +206,8 @@ function updateHostComponent(fiber) {
   // if (fiber.parent) {
   //   fiber.parent.dom.appendChild(fiber.dom);
   // }
-  const elements = fiber.props.children;
-
-  reconcileChildren(fiber, elements);
+  // const elements = fiber.props.children;
+  reconcileChildren(fiber, fiber.props.children);
 }
 /*
  * fiber:
@@ -214,10 +254,10 @@ function reconcileChildren(wipFiber, elements) {
    */
 
   let index = 0;
-  let oldFiber = wipFiber.base && wipFiber.base.child;
   let prevSibling = null;
+  let oldFiber = wipFiber.base && wipFiber.base.child;
 
-  while (index < elements.length && oldFiber !== null) {
+  while (index < elements.length || oldFiber !== null) {
     const element = elements[index];
     let newFiber = null;
 
@@ -257,8 +297,8 @@ function reconcileChildren(wipFiber, elements) {
 
     if (index === 0) {
       wipFiber.child = newFiber;
-    } else {
-      prevSibling.prevSibling = newFiber;
+    } else if (element) {
+      prevSibling.sibling = newFiber;
     }
     prevSibling = newFiber;
     index += 1;
@@ -269,4 +309,4 @@ function reconcileChildren(wipFiber, elements) {
 // Process tasks when the event loop is idle
 window.requestIdleCallback(workLoop);
 
-export default { createElement, render };
+export default { createElement, render, useState };
