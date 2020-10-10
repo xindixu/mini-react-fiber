@@ -21,7 +21,25 @@ function createElement(type, props, ...children) {
 }
 
 function render(vdom, container) {
-  container.innerHTML = `<pre>${JSON.stringify(vdom, null, 2)}</pre>`;
+  // container.innerHTML = `<pre>${JSON.stringify(vdom, null, 2)}</pre>`;
+
+  const dom =
+    vdom.type === "text"
+      ? document.createTextNode(vdom.nodeValue)
+      : document.createElement(vdom.type);
+
+  Object.keys(vdom.props)
+    .filter((key) => key !== "children")
+    .forEach((name) => {
+      // TODO: event listeners
+      dom[name] = vdom.props[name];
+    });
+
+  vdom.props.children.forEach((child) => {
+    render(child, dom);
+  });
+
+  container.appendChild(dom);
 }
 
 export default { createElement, render };
