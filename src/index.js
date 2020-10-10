@@ -1,4 +1,5 @@
-import React from "./reactjs/index";
+// import React from "./reactjs/index";
+import React from "./reactjs/copy";
 
 const ReactDOM = React;
 
@@ -6,11 +7,11 @@ const App = ({ title }) => {
   const [count, setCount] = React.useState(0);
   return (
     <div>
-      <h1>{title}</h1>
+      <h1>
+        {title} {count}
+      </h1>
       <p>A paragraph</p>
-      <a href="www.google.com">Google</a>
-      {count}
-      <button onClick={() => setCount(count + 1)}>add</button>
+      <button onClick={() => setCount(count + 1)}>Add</button>
     </div>
   );
 };
