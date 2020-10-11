@@ -1,4 +1,6 @@
-function reconcileChildren(fiber, elements, deletions) {
+const w = window;
+
+function reconcileChildren(fiber, elements) {
   // construct fiber from vdom
 
   let index = 0;
@@ -36,7 +38,7 @@ function reconcileChildren(fiber, elements, deletions) {
     if (!sameType && oldFiber) {
       // delete old node
       oldFiber.effectTag = "DELETION";
-      deletions.push(oldFiber);
+      w.deletions.push(oldFiber);
     }
 
     if (oldFiber) {
